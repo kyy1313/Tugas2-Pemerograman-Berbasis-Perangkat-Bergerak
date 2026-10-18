@@ -1,56 +1,101 @@
 <template>
   <ion-page>
-    <ion-header :translucent="true">
+    <ion-header>
       <ion-toolbar>
-        <ion-title>Blank</ion-title>
+        <ion-title>Prakiraan Suhu Kota Jakarta</ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="true">
-      <ion-header collapse="condense">
-        <ion-toolbar>
-          <ion-title size="large">Blank</ion-title>
-        </ion-toolbar>
-      </ion-header>
+    <ion-content class="ion-padding">
+      <p v-if="loading">Memuat data cuaca...</p>
+      <p v-else-if="error" class="error">{{ error }}</p>
 
-      <div id="container">
-        <strong>Ready to create an app?</strong>
-        <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
-      </div>
+      <ion-list v-else>
+        <ion-list-header>
+          <ion-label>10 Data Pertama (per jam)</ion-label>
+        </ion-list-header>
+
+        <ion-item v-for="item in dataCuaca" :key="item.time">
+          <ion-label>
+            <p class="label-kecil">Waktu</p>
+            <h2 class="waktu">{{ formatWaktu(item.time) }}</h2>
+          </ion-label>
+          <ion-note slot="end" class="suhu">
+            {{ item.temperature_2m }} °C
+          </ion-note>
+        </ion-item>
+      </ion-list>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonContent,
+  IonList,
+  IonListHeader,
+  IonItem,
+  IonLabel,
+  IonNote,
+} from '@ionic/vue';
+
+interface DataCuaca {
+  time: string;
+  temperature_2m: number;
+}
+
+const API_URL =
+  'https://api.open-meteo.com/v1/forecast?latitude=-6.2&longitude=106.8&hourly=temperature_2m';
+
+const dataCuaca = ref<DataCuaca[]>([]);
+const loading = ref(true);
+const error = ref('');
+
+const formatWaktu = (waktu: string) => waktu.replace('T', ' ');
+
+onMounted(async () => {
+  try {
+    const response = await axios.get(API_URL);
+    const waktu: string[] = response.data.hourly.time;
+    const suhu: number[] = response.data.hourly.temperature_2m;
+
+    // Ambil 10 data pertama, lalu gabungkan time dan temperature_2m
+    dataCuaca.value = waktu.slice(0, 10).map((t, i) => ({
+      time: t,
+      temperature_2m: suhu[i],
+    }));
+  } catch (e) {
+    error.value = 'Gagal memuat data cuaca. Periksa koneksi internet Anda.';
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <style scoped>
-#container {
-  text-align: center;
-  
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+.label-kecil {
+  font-size: 12px;
+  color: #c4d4f4;
 }
 
-#container strong {
-  font-size: 20px;
-  line-height: 26px;
+.waktu {
+  font-size: 17px;
+  color: #585e68;
 }
 
-#container p {
-  font-size: 16px;
-  line-height: 22px;
-  
-  color: #8c8c8c;
-  
-  margin: 0;
+.suhu {
+  font-size: 17px;
+  font-weight: bold;
+  color: #263452;
 }
 
-#container a {
-  text-decoration: none;
+.error {
+  color: #dc2626;
 }
 </style>
